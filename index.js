@@ -23,6 +23,7 @@ import cleanupRouter from "./routes/cleanupRoutes.js"
 import faqRouter from "./routes/faqRoutes.js"
 import subscriberRouter from "./routes/subscriberRoutes.js"
 import authRoutes from "./routes/authRoutes.js"
+import messageRouter from "./routes/messageRoutes.js";
 
 const app = express()
 const PORT = process.env.PORT || 5000
@@ -76,6 +77,7 @@ app.use("/api/technologies", technologyRouter);
 app.use("/api/cleanup", cleanupRouter);
 app.use("/api/faqs", faqRouter);
 app.use("/api/subscriber", subscriberRouter);
+app.use("/api/messages", messageRouter);
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`)
