@@ -148,3 +148,124 @@ export const getAllMessages = async (req, res) => {
     });
   }
 };
+
+// Admin - Get messages with filters, search, and pagination
+export const getAdminMessages = async (req, res) => {
+  try {
+    const {
+      page = 1,
+      limit = 10,
+      search = '',
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
+      read,
+      startDate,
+      endDate
+    } = req.query;
+
+    // Build search query
+    const query = {};
+
+    // Text search across name, email, phone, and message
+    if (search.trim()) {
+      query.$or = [
+        { name: { $regex: search.trim(), $options: 'i' } },
+        { email: { $regex: search.trim(), $options: 'i' } },
+        { phone: { $regex: search.trim(), $options: 'i' } },
+        { message: { $regex: search.trim(), $options: 'i' } }
+      ];
+    }
+
+    // Filter by read status
+    if (read !== undefined) {
+      query.read = read === 'true';
+    }
+
+    // Filter by date range
+    if (startDate || endDate) {
+      query.createdAt = {};
+      if (startDate) {
+        query.createdAt.$gte = new Date(startDate);
+      }
+      if (endDate) {
+        query.createdAt.$lte = new Date(endDate);
+      }
+    }
+
+    // Calculate pagination
+    const pageNumber = parseInt(page, 10);
+    const limitNumber = parseInt(limit, 10);
+    const skip = (pageNumber - 1) * limitNumber;
+
+    // Build sort object
+    const sort = {};
+    sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
+
+    // Execute queries
+    const [messages, totalCount] = await Promise.all([
+      messageModel
+        .find(query)
+        .sort(sort)
+        .skip(skip)
+        .limit(limitNumber)
+        .lean(),
+      messageModel.countDocuments(query)
+    ]);
+
+    // Calculate pagination info
+    const totalPages = Math.ceil(totalCount / limitNumber);
+    const hasNextPage = pageNumber < totalPages;
+    const hasPrevPage = pageNumber > 1;
+
+    // Get additional statistics
+    const [totalMessages, unreadCount, todayCount] = await Promise.all([
+      messageModel.countDocuments(),
+      messageModel.countDocuments({ read: false }),
+      messageModel.countDocuments({
+        createdAt: {
+          $gte: new Date(new Date().setHours(0, 0, 0, 0)),
+          $lt: new Date(new Date().setHours(23, 59, 59, 999))
+        }
+      })
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        messages,
+        pagination: {
+          currentPage: pageNumber,
+          totalPages,
+          totalCount,
+          limit: limitNumber,
+          hasNextPage,
+          hasPrevPage,
+          nextPage: hasNextPage ? pageNumber + 1 : null,
+          prevPage: hasPrevPage ? pageNumber - 1 : null
+        },
+        statistics: {
+          total: totalMessages,
+          unread: unreadCount,
+          today: todayCount,
+          filtered: totalCount
+        },
+        filters: {
+          search: search.trim(),
+          read,
+          startDate,
+          endDate,
+          sortBy,
+          sortOrder
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Admin messages fetch failed:', error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to fetch messages",
+      code: 'ADMIN_MESSAGES_FETCH_FAILED'
+    });
+  }
+};
