@@ -1,43 +1,49 @@
 import dotenv from 'dotenv';
-dotenv.config();
-import http from 'http';
 import nodemailer from 'nodemailer';
 
-// Configure the SMTP transporter
- const transporter = nodemailer.createTransport({
-      host: process.env.SMTP,  
-      port: 465, 
-      secure: true, 
-      auth: {
-        user: process.env.EMAIL, 
-        pass: process.env.EMAIL_PASS,    
-      },
-    });
-// Function to send email
-async function sendEmail({sendTo, subject, text, html}) {
-  try {
-   
+dotenv.config();
 
-    transporter.verify((error, success) => {
-      if (error) {
-        console.error('Transporter config error:', error);
-      } else {
-        console.log('Email transporter is ready to send messages');
-      }
-    });
-   
-    const info = await transporter.sendMail({
-      from: process.env.EMAIL, // sender address
-      to: sendTo, // list of receivers
-      subject, // Subject line
-      text, // plain text body
-      html, // html body
-    });
-    return { success: true, messageId: info.messageId };
+// Configure SMTP transporter
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP,  
+  port: 465, 
+  secure: true,
+  auth: {
+    user: process.env.EMAIL, 
+    pass: process.env.EMAIL_PASS,    
+  },
+  pool: true,
+  maxConnections: 5,
+  maxMessages: 100
+});
+
+// Verify transporter on startup
+transporter.verify((error, success) => {
+  if (error) {
+    console.error('Email service configuration error:', error.message);
+  } else {
+    console.log('✓ Email service ready');
+  }
+});
+
+// Optimized email sending function
+export const sendEmail = async ({ sendTo, subject, text, html }) => {
+  try {
+    const mailOptions = {
+      from: `"TechCulture AI" <${process.env.EMAIL}>`,
+      to: sendTo,
+      subject,
+      text: text || 'New message from TechCulture AI',
+      html: html || text,
+      encoding: 'utf8'
+    };
+
+    const result = await transporter.sendMail(mailOptions);
+    console.log(`✓ Email sent to ${sendTo} [ID: ${result.messageId}]`);
+    return { success: true, messageId: result.messageId };
+    
   } catch (error) {
-    console.error('Error sending email:', error);
+    console.error('Email sending failed:', error.message);
     return { success: false, error: error.message };
   }
-}
-
-export {sendEmail};
+};
