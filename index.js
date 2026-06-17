@@ -30,9 +30,9 @@ const PORT = process.env.PORT || 5000
 app.use(
   cors({
     origin: [
-      "https://appcenter.techculture.ai",
+      "https://admin.techculture.ai",
       "https://techculture.ai",
-      "http://appcenter.techculture.ai",
+      "https://admin.techculture.ai",
       "http://techculture.ai",
       "http://localhost:3000",
       "http://localhost:3001",
